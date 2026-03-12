@@ -253,6 +253,39 @@ cc_library(
 )
 
 cc_library(
+        name = "skeleton_service_data_control_local",
+        srcs = [ "skeleton_service_data_control_local.cpp", ],
+        hdrs = [ "skeleton_service_data_control_local.h", ],
+        features = COMPILER_WARNING_FEATURES,
+        tags = ["FFI"],
+        # visibility = [
+        #     "//score/mw/com/impl/bindings/lola/test_doubles:__pkg__",
+        # ],
+        deps = [
+            ":service_data_control",
+            ":skeleton_event_control_local",
+            ":element_fq_id",
+        ],
+)
+
+cc_library(
+    name = "proxy_service_data_control_local",
+    srcs = [ "proxy_service_data_control_local.cpp", ],
+    hdrs = [ "proxy_service_data_control_local.h", ],
+    features = COMPILER_WARNING_FEATURES,
+    tags = ["FFI"],
+    # visibility = [
+    #     "//score/mw/com/impl/bindings/lola/test_doubles:__pkg__",
+    # ],
+    deps = [
+        ":application_id_pid_mapping",
+            ":service_data_control",
+            ":proxy_event_control_local",
+            ":element_fq_id",
+    ],
+)
+
+cc_library(
     name = "skeleton",
     srcs = [
         "skeleton.cpp",
@@ -553,6 +586,49 @@ cc_library(
     ],
 )
 
+# gtodo: Update dependencies of local views
+cc_library(
+    name = "skeleton_event_data_control_local",
+    srcs = ["skeleton_event_data_control_local.cpp"],
+    hdrs = ["skeleton_event_data_control_local.h"],
+    features = COMPILER_WARNING_FEATURES,
+    tags = ["FFI"],
+    visibility = ["//score/mw/com/impl/bindings/lola:__subpackages__"],
+    deps = [
+        ":event_data_control",
+        ":control_slot_indicator",
+        ":control_slot_types",
+        ":event_slot_status",
+        ":transaction_log",
+        ":transaction_log_id",
+        ":transaction_log_set",
+        # "@score_baselibs//score/containers:dynamic_array",
+        "@score_baselibs//score/memory/shared:atomic_indirector",
+        "@score_baselibs//score/memory/shared:types",
+    ],
+)
+
+cc_library(
+    name = "proxy_event_data_control_local",
+    srcs = ["proxy_event_data_control_local.cpp"],
+    hdrs = ["proxy_event_data_control_local.h"],
+    features = COMPILER_WARNING_FEATURES,
+    tags = ["FFI"],
+    visibility = ["//score/mw/com/impl/bindings/lola:__subpackages__"],
+    deps = [
+        ":event_data_control",
+        ":control_slot_indicator",
+        ":control_slot_types",
+        ":event_slot_status",
+        ":transaction_log",
+        ":transaction_log_id",
+        ":transaction_log_set",
+        # "@score_baselibs//score/containers:dynamic_array",
+        "@score_baselibs//score/memory/shared:atomic_indirector",
+        "@score_baselibs//score/memory/shared:types",
+    ],
+)
+
 cc_library(
     name = "control_slot_types",
     srcs = ["control_slot_types.cpp"],
@@ -578,6 +654,43 @@ cc_library(
         ":control_slot_types",
         ":event_data_control",
         ":event_subscription_control",
+    ],
+)
+
+cc_library(
+    name = "skeleton_event_control_local",
+    srcs = ["skeleton_event_control_local.cpp"],
+    hdrs = ["skeleton_event_control_local.h"],
+    features = COMPILER_WARNING_FEATURES,
+    tags = ["FFI"],
+    visibility = ["//score/mw/com/impl/bindings/lola:__subpackages__"],
+    deps = [
+        ":event_control",
+        # ":event_data_control",
+        ":skeleton_event_data_control_local",
+    ],
+)
+
+cc_library(
+    name = "proxy_event_control_local",
+    srcs = ["proxy_event_control_local.cpp"],
+    hdrs = ["proxy_event_control_local.h"],
+    features = COMPILER_WARNING_FEATURES,
+    tags = ["FFI"],
+    visibility = ["//score/mw/com/impl/bindings/lola:__subpackages__"],
+    deps = [
+        ":event_control",
+        ":event_data_control",
+        ":proxy_event_data_control_local",
+        # ":control_slot_indicator",
+        # ":control_slot_types",
+        # ":event_slot_status",
+        # ":transaction_log",
+        # ":transaction_log_id",
+        # ":transaction_log_set",
+        # "@score_baselibs//score/containers:dynamic_array",
+        # "@score_baselibs//score/memory/shared:atomic_indirector",
+        # "@score_baselibs//score/memory/shared:types",
     ],
 )
 
