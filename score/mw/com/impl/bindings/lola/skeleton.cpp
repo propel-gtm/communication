@@ -285,6 +285,8 @@ Skeleton::Skeleton(const InstanceIdentifier& identifier,
       storage_{nullptr},
       control_qm_{nullptr},
       control_asil_b_{nullptr},
+      control_qm_local_{},
+      control_asil_b_local_{},
       storage_resource_{},
       control_qm_resource_{},
       control_asil_resource_{},
@@ -739,9 +741,13 @@ bool Skeleton::OpenSharedMemoryForControl(const QualityType asil_level)
     data_control_path = path;
 
     auto& control = (asil_level == QualityType::kASIL_QM) ? control_qm_ : control_asil_b_;
+    auto& control_local = (asil_level == QualityType::kASIL_QM) ? control_qm_local_ : control_asil_b_local_;
 
     const auto& control_resource_ref = *control_resource.get();
     control = GetServiceDataControlSkeletonSide(control_resource_ref);
+
+    SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD(control != nullptr);
+    score::cpp::ignore = control_local.emplace(*control);
 
     return true;
 }
@@ -952,14 +958,14 @@ QualityType Skeleton::GetInstanceQualityType() const
 // coverity[autosar_cpp14_a15_5_3_violation : FALSE]
 void Skeleton::CleanupSharedMemoryAfterCrash()
 {
-    for (auto& event : control_qm_->event_controls_)
+    for (auto& event : control_qm_local_->event_controls_)
     {
         event.second.data_control.RemoveAllocationsForWriting();
     }
 
-    if (control_asil_b_ != nullptr)
+    if (control_asil_b_local_.has_value())
     {
-        for (auto& event : control_asil_b_->event_controls_)
+        for (auto& event : control_asil_b_local_->event_controls_)
         {
             event.second.data_control.RemoveAllocationsForWriting();
         }
@@ -1026,7 +1032,11 @@ void Skeleton::InitializeSharedMemoryForControl(
     const std::shared_ptr<score::memory::shared::ManagedMemoryResource>& memory)
 {
     auto& control = (asil_level == QualityType::kASIL_QM) ? control_qm_ : control_asil_b_;
+    auto& control_local = (asil_level == QualityType::kASIL_QM) ? control_qm_local_ : control_asil_b_local_;
     control = memory->construct<ServiceDataControl>(*memory);
+
+    SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD(control != nullptr);
+    score::cpp::ignore = control_local.emplace(*control);
 }
 
 ResultBlank Skeleton::OnServiceMethodsSubscribed(const ProxyInstanceIdentifier& proxy_instance_identifier,

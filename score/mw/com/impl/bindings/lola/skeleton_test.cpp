@@ -837,9 +837,9 @@ TEST_P(SkeletonRegisterParamaterisedFixture, RegisterWillOpenEventDataIfShmRegio
     auto& event_data_storage = GetEventStorageFromServiceDataStorage<test::TestSampleType>(
         test::kDummyElementFqId, existing_service_data_storage_);
 
-    EXPECT_EQ(&event_data_control_composite.GetQmEventDataControl(), &event_control_qm.data_control);
-    ASSERT_TRUE(event_data_control_composite.GetAsilBEventDataControl().has_value());
-    EXPECT_EQ(event_data_control_composite.GetAsilBEventDataControl().value(), &event_control_asil_b.data_control);
+    EXPECT_EQ(&event_data_control_composite.GetQmEventDataControlLocal(), &event_control_qm.data_control);
+    ASSERT_NE(event_data_control_composite.GetAsilBEventDataControlLocal(), nullptr);
+    EXPECT_EQ(event_data_control_composite.GetAsilBEventDataControlLocal().value(), &event_control_asil_b.data_control);
     EXPECT_EQ(typed_event_data_storage_ptr, &event_data_storage);
 }
 

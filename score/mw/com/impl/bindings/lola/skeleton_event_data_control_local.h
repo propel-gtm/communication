@@ -138,6 +138,15 @@ class SkeletonEventDataControlLocal final
     void ReferenceSpecificEvent(const SlotIndexType slot_index,
                                 const TransactionLogSet::TransactionLogIndex transaction_log_index) noexcept;
 
+    /// \brief Indicates that a consumer is finished reading (thread-safe, wait-free).
+    /// \pre ReferenceNextEvent() was invoked to obtain read-ownership
+    ///
+    /// \details Will not record the transaction in any TransactionLog. This function is called by the
+    /// TransactionLog::DereferenceSlotCallback created within TransactionLogSet::RollbackProxyTransactions and
+    /// RollbackSkeletonTracingTransactions. In these cases, the transaction will be recorded within
+    /// TransactionLog::RollbackIncrementTransactions resp. RollbackSubscribeTransactions before calling the callback.
+    void DereferenceEventWithoutTransactionLogging(const SlotIndexType event_slot_index) noexcept;
+
     // /// \brief Directly access EventSlotStatus for one specific slot
     /// gtodo: Is this needed?
     EventSlotStatus operator[](const SlotIndexType slot_index) const noexcept;

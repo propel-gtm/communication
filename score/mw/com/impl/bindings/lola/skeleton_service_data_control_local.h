@@ -35,11 +35,11 @@ namespace score::mw::com::impl::lola
 class SkeletonServiceDataControlLocal
 {
   public:
-    explicit SkeletonServiceDataControlLocal(ServiceDataControl& service_data_control) : skeleton_event_controls_{}
+    explicit SkeletonServiceDataControlLocal(ServiceDataControl& service_data_control) : event_controls_{}
     {
         for (auto& element : service_data_control.event_controls_)
         {
-            const auto insertion_result = skeleton_event_controls_.emplace(
+            const auto insertion_result = event_controls_.emplace(
                 std::piecewise_construct, std::forward_as_tuple(element.first), std::forward_as_tuple(element.second));
 
             const bool was_inserted = insertion_result.second;
@@ -58,7 +58,7 @@ class SkeletonServiceDataControlLocal
     // be private.". There are no class invariants to maintain which could be violated by directly accessing member
     // variables.
     // coverity[autosar_cpp14_m11_0_1_violation]
-    score::memory::shared::Map<ElementFqId, SkeletonEventControlLocal> skeleton_event_controls_;
+    score::memory::shared::Map<ElementFqId, SkeletonEventControlLocal> event_controls_;
 };
 
 }  // namespace score::mw::com::impl::lola

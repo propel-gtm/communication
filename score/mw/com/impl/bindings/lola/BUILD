@@ -317,6 +317,7 @@ cc_library(
         ":skeleton_instance_identifier",
         ":transaction_log_registration_guard",
         ":type_erased_sample_ptrs_guard",
+        ":skeleton_service_data_control_local",
         "//score/mw/com/impl:instance_identifier",
         "//score/mw/com/impl:runtime",
         "//score/mw/com/impl:skeleton_binding",
@@ -369,6 +370,8 @@ cc_library(
         ":event_subscription_control",
         ":proxy_instance_identifier",
         ":service_data_control",
+        ":proxy_event_control_local",
+        ":proxy_service_data_control_local",
         ":service_data_storage",
         ":shm_path_builder",
         ":slot_collector",
@@ -437,7 +440,7 @@ cc_library(
         "//score/mw/com/impl:__subpackages__",
     ],
     deps = [
-        ":event_data_control",
+        ":proxy_event_data_control_local",
         ":slot_decrementer",
     ],
 )
@@ -452,7 +455,7 @@ cc_library(
         "//score/mw/com/impl:__subpackages__",
     ],
     deps = [
-        ":event_data_control",
+        ":proxy_event_data_control_local",
         ":transaction_log_set",
     ],
 )
@@ -480,8 +483,8 @@ cc_library(
     features = COMPILER_WARNING_FEATURES,
     tags = ["FFI"],
     deps = [
-        ":event_control",
-        ":event_data_control",
+        ":proxy_event_data_control_local",
+        ":proxy_event_control_local",
         ":i_runtime",
         ":slot_collector",
         ":transaction_log_id",
@@ -499,7 +502,7 @@ cc_library(
     features = COMPILER_WARNING_FEATURES,
     tags = ["FFI"],
     deps = [
-        ":event_data_control",
+        ":proxy_event_data_control_local",
         ":event_slot_status",
         ":transaction_log_set",
     ],
@@ -733,6 +736,7 @@ cc_library(
     ],
     deps = [
         ":control_slot_types",
+        ":skeleton_event_data_control_local",
         ":event_data_control",
         ":event_slot_status",
         "@score_baselibs//score/memory/shared:atomic_indirector",
@@ -848,7 +852,7 @@ cc_library(
     tags = ["FFI"],
     visibility = ["//score/mw/com/impl/bindings/lola:__subpackages__"],
     deps = [
-        ":service_data_control",
+        ":proxy_service_data_control_local",
         ":transaction_log_id",
         ":transaction_log_set",
         "//score/mw/com/impl:runtime",
@@ -870,8 +874,10 @@ cc_library(
     tags = ["FFI"],
     visibility = ["//score/mw/com/impl/bindings/lola:__subpackages__"],
     deps = [
-        ":event_data_control",
+        ":proxy_event_data_control_local",
+        ":skeleton_event_data_control_local",
         ":transaction_log_id",
+        ":transaction_log_set",
         "@score_baselibs//score/result",
     ],
 )
@@ -1040,18 +1046,58 @@ cc_unit_test(
     ],
 )
 
-cc_test(
+cc_gtest_unit_test(
     name = "event_data_control_test",
+    srcs = ["event_data_control_test.cpp"],
+    features = COMPILER_WARNING_FEATURES,
+    deps = [
+        ":event_data_control",
+        ":event_slot_status",
+        "@score_baselibs//score/containers:dynamic_array",
+    ],
+)
+
+# gtodo: Clean up deps
+cc_test(
+    name = "skeleton_event_data_control_local_test",
     size = "small",
     timeout = "long",
     srcs = [
-        "event_data_control_test.cpp",
+        "skeleton_event_data_control_local_test.cpp",
     ],
     features = COMPILER_WARNING_FEATURES + [
         "aborts_upon_exception",
     ],
     tags = ["unit"],
     deps = [
+        "//score/mw/com/impl:instance_specifier",
+        "//score/mw/com/impl/bindings/lola:event_data_control",
+        "//score/mw/com/impl/bindings/lola:event_data_control_composite",
+        "//score/mw/com/impl/bindings/lola/test_doubles:fake_memory_resource",
+        "@googletest//:gtest_main",
+        ":skeleton_event_data_control_local",
+        "@score_baselibs//score/containers:dynamic_array",
+        "@score_baselibs//score/language/futurecpp",
+        "@score_baselibs//score/language/safecpp/coverage_termination_handler",
+        "@score_baselibs//score/memory/shared:atomic_indirector_mock_binding",
+        "@score_baselibs//score/memory/shared:new_delete_delegate_resource",
+    ],
+)
+
+cc_test(
+    name = "proxy_event_data_control_local_test",
+    size = "small",
+    timeout = "long",
+    srcs = [
+        "proxy_event_data_control_local_test.cpp",
+    ],
+    features = COMPILER_WARNING_FEATURES + [
+        "aborts_upon_exception",
+    ],
+    tags = ["unit"],
+    deps = [
+        ":proxy_event_data_control_local",
+        ":skeleton_event_data_control_local",
         "//score/mw/com/impl:instance_specifier",
         "//score/mw/com/impl/bindings/lola:event_data_control",
         "//score/mw/com/impl/bindings/lola:event_data_control_composite",
@@ -1072,6 +1118,8 @@ cc_gtest_unit_test(
     deps = [
         "//score/mw/com/impl:instance_specifier",
         "//score/mw/com/impl/bindings/lola:event_data_control",
+        ":proxy_event_data_control_local",
+        ":skeleton_event_data_control_local",
         "//score/mw/com/impl/bindings/lola:event_data_control_composite",
         "//score/mw/com/impl/bindings/lola/test_doubles:fake_memory_resource",
         "@score_baselibs//score/containers:dynamic_array",
@@ -1179,6 +1227,8 @@ cc_gtest_unit_test(
     features = COMPILER_WARNING_FEATURES,
     deps = [
         ":event_data_control",
+        ":proxy_event_data_control_local",
+        ":skeleton_event_data_control_local",
         ":slot_decrementer",
         "//score/mw/com/impl/bindings/lola/test_doubles:fake_memory_resource",
     ],
@@ -1373,6 +1423,8 @@ cc_gtest_unit_test(
     features = COMPILER_WARNING_FEATURES,
     deps = [
         ":slot_collector",
+        ":proxy_event_data_control_local",
+        ":skeleton_event_data_control_local",
         "//score/mw/com/impl/bindings/lola/test_doubles",
     ],
 )
@@ -1544,6 +1596,8 @@ cc_unit_test_suites_for_host_and_qnx(
         ":dynamic_array_bounds_checking_test",
         ":event_data_control_test",
         ":event_data_control_composite_test",
+        ":proxy_event_data_control_local_test",
+        ":skeleton_event_data_control_local_test",
         ":generic_proxy_event_test",
         ":partial_restart_path_builder_test",
         ":proxy_instance_identifier_test",

@@ -168,6 +168,7 @@ cc_test(
     ],
     deps = [
         ":skeleton_test_resources",
+        "//score/mw/com/impl/bindings/lola:proxy_event_control_local",
         "//score/mw/com/impl:runtime_mock",
         "//score/mw/com/impl:service_discovery_mock",
         "//score/mw/com/impl/bindings/lola:runtime_mock",

@@ -30,6 +30,7 @@
 #include "score/mw/com/impl/bindings/lola/skeleton_event_properties.h"
 #include "score/mw/com/impl/bindings/lola/skeleton_instance_identifier.h"
 #include "score/mw/com/impl/bindings/lola/skeleton_method.h"
+#include "score/mw/com/impl/bindings/lola/skeleton_service_data_control_local.h"
 #include "score/mw/com/impl/configuration/global_configuration.h"
 #include "score/mw/com/impl/configuration/lola_event_id.h"
 #include "score/mw/com/impl/configuration/lola_method_id.h"
@@ -247,6 +248,9 @@ class Skeleton final : public SkeletonBinding
     ServiceDataStorage* storage_;
     ServiceDataControl* control_qm_;
     ServiceDataControl* control_asil_b_;
+    std::optional<SkeletonServiceDataControlLocal> control_qm_local_;
+    std::optional<SkeletonServiceDataControlLocal> control_asil_b_local_;
+
     std::shared_ptr<score::memory::shared::ManagedMemoryResource> storage_resource_;
     std::shared_ptr<score::memory::shared::ManagedMemoryResource> control_qm_resource_;
     std::shared_ptr<score::memory::shared::ManagedMemoryResource> control_asil_resource_;
@@ -263,7 +267,7 @@ class Skeleton final : public SkeletonBinding
     ///
     /// OnServiceMethodsSubscribed can be called by the message passing concurrently, since different Proxies could
     /// subscribe at the same time or a single Proxy may send the same message multiple times (See
-    /// platform/aas/docs/features/ipc/lola/method/README.md for details).
+    /// score/docs/features/ipc/lola/method/README.md for details).
     std::mutex on_service_methods_subscribed_mutex_;
     MethodResourceMap method_resources_;
     std::unordered_map<LolaMethodId, std::reference_wrapper<SkeletonMethod>> skeleton_methods_;
@@ -313,10 +317,10 @@ auto Skeleton::Register(const ElementFqId element_fq_id, SkeletonEventProperties
         auto [typed_event_data_storage_ptr, event_data_control_composite] =
             OpenEventDataFromOpenedSharedMemory<SampleType>(element_fq_id);
 
-        auto& event_data_control_qm = event_data_control_composite.GetQmEventDataControl();
-        auto rollback_result = event_data_control_qm.GetTransactionLogSet().RollbackSkeletonTracingTransactions(
-            [&event_data_control_qm](const TransactionLog::SlotIndexType slot_index) {
-                event_data_control_qm.DereferenceEventWithoutTransactionLogging(slot_index);
+        auto& event_data_control_qm_local = event_data_control_composite.GetQmEventDataControlLocal();
+        auto rollback_result = event_data_control_qm_local.GetTransactionLogSet().RollbackSkeletonTracingTransactions(
+            [&event_data_control_qm_local](const TransactionLog::SlotIndexType slot_index) {
+                event_data_control_qm_local.DereferenceEventWithoutTransactionLogging(slot_index);
             });
         if (!rollback_result.has_value())
         {
@@ -362,12 +366,12 @@ auto Skeleton::OpenEventDataFromOpenedSharedMemory(const ElementFqId element_fq_
 
     score::cpp::ignore = find_element(storage_->events_metainfo_, element_fq_id);
     const auto event_data_storage_it = find_element(storage_->events_, element_fq_id);
-    const auto event_control_qm_it = find_element(control_qm_->event_controls_, element_fq_id);
+    const auto event_control_qm_it = find_element(control_qm_local_->event_controls_, element_fq_id);
 
-    EventDataControl* event_data_control_asil_b{nullptr};
+    SkeletonEventDataControlLocal<>* event_data_control_asil_b_local{nullptr};
     if (detail_skeleton::HasAsilBSupport(identifier_))
     {
-        const auto event_control_asil_b_it = find_element(control_asil_b_->event_controls_, element_fq_id);
+        const auto event_control_asil_b_it = find_element(control_asil_b_local_->event_controls_, element_fq_id);
         // Suppress "AUTOSAR C++14 M7-5-1" rule. This rule declares:
         // A function shall not return a reference or a pointer to an automatic variable (including parameters), defined
         // within the function.
@@ -377,7 +381,7 @@ auto Skeleton::OpenEventDataFromOpenedSharedMemory(const ElementFqId element_fq_
         // coverity[autosar_cpp14_m7_5_1_violation]
         // coverity[autosar_cpp14_m7_5_2_violation]
         // coverity[autosar_cpp14_a3_8_1_violation]
-        event_data_control_asil_b = &(event_control_asil_b_it->second.data_control);
+        event_data_control_asil_b_local = &(event_control_asil_b_it->second.data_control);
     }
 
     // Suppress "AUTOSAR C++14 A5-3-2" rule finding. This rule declares: "Null pointers shall not be dereferenced.".
@@ -400,7 +404,7 @@ auto Skeleton::OpenEventDataFromOpenedSharedMemory(const ElementFqId element_fq_
             // coverity[autosar_cpp14_m7_5_1_violation]
             // coverity[autosar_cpp14_m7_5_2_violation]
             // coverity[autosar_cpp14_a3_8_1_violation]
-            EventDataControlComposite{&event_control_qm_it->second.data_control, event_data_control_asil_b}};
+            EventDataControlComposite{&event_control_qm_it->second.data_control, event_data_control_asil_b_local}};
 }
 
 template <typename SampleType>
@@ -442,9 +446,15 @@ auto Skeleton::CreateEventDataFromOpenedSharedMemory(const ElementFqId element_f
                                                                                  element_properties.enforce_max_samples,
                                                                                  *control_qm_resource_));
     SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD_MESSAGE(control_qm.second,
-                                                "Couldn't register/emplace event-meta-info in data-section.");
+                                                "Couldn't register/emplace EventControl in data-section.");
 
-    EventDataControl* control_asil_result{nullptr};
+    auto control_qm_local = control_qm_local_->event_controls_.emplace(std::piecewise_construct,
+                                                                       std::forward_as_tuple(element_fq_id),
+                                                                       std::forward_as_tuple(control_qm.first->second));
+    SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD_MESSAGE(control_qm_local.second,
+                                                "Couldn't register/emplace EventControlLocal in data-section.");
+
+    SkeletonEventDataControlLocal<>* control_asil_local_result{nullptr};
     if (control_asil_resource_ != nullptr)
     {
         auto iterator =
@@ -454,6 +464,10 @@ auto Skeleton::CreateEventDataFromOpenedSharedMemory(const ElementFqId element_f
                                                                            element_properties.max_subscribers,
                                                                            element_properties.enforce_max_samples,
                                                                            *control_asil_resource_));
+        auto iterator_local =
+            control_asil_b_local_->event_controls_.emplace(std::piecewise_construct,
+                                                           std::forward_as_tuple(element_fq_id),
+                                                           std::forward_as_tuple(iterator.first->second));
 
         // Suppress "AUTOSAR C++14 M7-5-1" rule. This rule declares:
         // A function shall not return a reference or a pointer to an automatic variable (including parameters), defined
@@ -464,14 +478,14 @@ auto Skeleton::CreateEventDataFromOpenedSharedMemory(const ElementFqId element_f
         // coverity[autosar_cpp14_m7_5_1_violation]
         // coverity[autosar_cpp14_m7_5_2_violation]
         // coverity[autosar_cpp14_a3_8_1_violation]
-        control_asil_result = &iterator.first->second.data_control;
+        control_asil_local_result = &iterator_local.first->second.data_control;
     }
     // clang-format off
     // The lifetime of the "control_asil_result" object lasts as long as the Skeleton is alive.
     // coverity[autosar_cpp14_m7_5_1_violation]
     // coverity[autosar_cpp14_m7_5_2_violation]
     // coverity[autosar_cpp14_a3_8_1_violation]
-    return {typed_event_data_storage_ptr, EventDataControlComposite{&control_qm.first->second.data_control, control_asil_result}};
+    return {typed_event_data_storage_ptr, EventDataControlComposite{&control_qm_local.first->second.data_control, control_asil_local_result}};
     // clang-format on
 }
 
