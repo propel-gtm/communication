@@ -107,7 +107,7 @@ class EventDataControlCompositeFixture : public ::testing::Test
         SCORE_LANGUAGE_FUTURECPP_ASSERT(skeleton_qm_local_.has_value());
 
         auto* const asil_control = skeleton_asil_local_.has_value() ? &skeleton_asil_local_.value() : nullptr;
-        unit_ = std::make_unique<EventDataControlComposite<>>(&skeleton_qm_local_.value(), asil_control);
+        unit_ = std::make_unique<EventDataControlComposite<>>(&skeleton_qm_local_.value(), asil_control, nullptr);
         return *this;
     }
 
@@ -120,7 +120,7 @@ class EventDataControlCompositeFixture : public ::testing::Test
 
         auto* const asil_control = skeleton_asil_local_.has_value() ? &skeleton_asil_local_.value() : nullptr;
         unit_mock_ = std::make_unique<EventDataControlComposite<memory::shared::AtomicIndirectorMock>>(
-            &skeleton_qm_local_.value(), asil_control);
+            &skeleton_qm_local_.value(), asil_control, nullptr);
 
         return *this;
     }
@@ -597,7 +597,7 @@ TEST(EventDataControlCompositeTest, DISABLED_fuzz)
     SkeletonEventDataControlLocal skeleton_asil_local{asil};
     SkeletonEventDataControlLocal skeleton_qm_local{qm};
 
-    EventDataControlComposite unit{&skeleton_qm_local, &skeleton_asil_local};
+    EventDataControlComposite unit{&skeleton_qm_local, &skeleton_asil_local, nullptr};
 
     std::mutex allocated_slots_mutex{};
     std::vector<ControlSlotCompositeIndicator> allocated_slots{};

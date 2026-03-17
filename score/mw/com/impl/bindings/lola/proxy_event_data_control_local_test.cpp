@@ -234,6 +234,86 @@ TEST_F(ProxyEventDataControlLocalFixture, FailingToUpdateSlotValueCausesReferenc
     // No event will be found
     ASSERT_FALSE(event.IsValid());
 }
+using EventDataControlReferenceSpecificEventFixture = ProxyEventDataControlLocalFixture;
+TEST_F(EventDataControlReferenceSpecificEventFixture, ReferenceSpecificEvents)
+{
+    const std::size_t max_number_slots{6U};
+    const std::size_t subscription_slots{6U};
+
+    // Given an EventDataControl with 6 ready slots
+    GivenARealProxyEventDataControlLocal(max_number_slots, kMaxSubscribers);
+    for (unsigned int i = 0; i < 6; i++)
+    {
+        WithAnAllocatedSlot(i + 1);
+    }
+
+    const auto transaction_log_index =
+        unit_->GetTransactionLogSet().RegisterProxyElement(kDummyTransactionLogId).value();
+
+    // When explicitly referencing (ref-count-incrementing) each of them by index this is successful
+    for (SlotIndexType i = 0; i < subscription_slots; i++)
+    {
+        EXPECT_EQ((*unit_)[i].GetReferenceCount(), 0U);
+        unit_->ReferenceSpecificEvent(i, transaction_log_index);
+        EXPECT_EQ((*unit_)[i].GetReferenceCount(), 1U);
+    }
+}
+
+using EventDataControlReferenceSpecificEventDeathTest = EventDataControlReferenceSpecificEventFixture;
+TEST_F(EventDataControlReferenceSpecificEventDeathTest, ReferenceSpecificEvent_StatusInvalidTerminates)
+{
+    // Given an EventDataControl with one (initially invalid) slot
+    GivenARealProxyEventDataControlLocal(1, kMaxSubscribers);
+    EXPECT_TRUE((*unit_)[0].IsInvalid());
+
+    const auto transaction_log_index =
+        unit_->GetTransactionLogSet().RegisterProxyElement(kDummyTransactionLogId).value();
+
+    // When explicitly referencing (ref-count-incrementing) it
+    // Then the program terminates
+    EXPECT_DEATH(unit_->ReferenceSpecificEvent(static_cast<SlotIndexType>(0), transaction_log_index), ".*");
+}
+
+TEST_F(EventDataControlReferenceSpecificEventDeathTest, ReferenceSpecificEvent_StatusInWritingTerminates)
+{
+    // Given an EventDataControl with one in_writing slot
+    GivenARealProxyEventDataControlLocal(1, kMaxSubscribers);
+    auto slot = skeleton_event_data_control_local_->AllocateNextSlot();
+    ASSERT_TRUE(slot.IsValid());
+    EXPECT_TRUE((*unit_)[slot.GetIndex()].IsInWriting());
+
+    const auto transaction_log_index =
+        unit_->GetTransactionLogSet().RegisterProxyElement(kDummyTransactionLogId).value();
+
+    // When explicitly referencing (ref-count-incrementing) it
+    // Then the program terminates
+    EXPECT_DEATH(unit_->ReferenceSpecificEvent(static_cast<SlotIndexType>(0), transaction_log_index), ".*");
+}
+
+TEST_F(EventDataControlReferenceSpecificEventDeathTest, ReferenceSpecificEvent_ReferenceCountOverFlowsTerminates)
+{
+    memory::shared::AtomicMock<EventSlotStatus::value_type> atomic_mock;
+    memory::shared::AtomicIndirectorMock<EventSlotStatus::value_type>::SetMockObject(&atomic_mock);
+
+    // Expecting that incrementing the current reference count overflows (i.e. the previous value returned by fetch_add
+    // was already the max possible value)
+    EventSlotStatus event_slot_status_in_writing{};
+    event_slot_status_in_writing.SetReferenceCount(kSlotIsInWriting);
+    ON_CALL(atomic_mock, fetch_add(_, _))
+        .WillByDefault(Return(static_cast<EventSlotStatus::value_type>(event_slot_status_in_writing)));
+
+    // Given an EventDataControl with one slot
+    GivenAMockedEventDataControl(1, kMaxSubscribers);
+    auto slot = skeleton_event_data_control_local_mocked_->AllocateNextSlot();
+    ASSERT_TRUE(slot.IsValid());
+
+    const auto transaction_log_index =
+        unit_mock_->GetTransactionLogSet().RegisterProxyElement(kDummyTransactionLogId).value();
+
+    // When explicitly referencing (ref-count-incrementing) it which would lead to the ref count overflowing
+    // Then the program terminates
+    EXPECT_DEATH(unit_mock_->ReferenceSpecificEvent(static_cast<SlotIndexType>(0), transaction_log_index), ".*");
+}
 
 TEST_F(ProxyEventDataControlLocalFixture, GetNumNewEvents_Zero)
 {

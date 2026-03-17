@@ -35,7 +35,6 @@ class SkeletonEventControlLocal
     // coverity[autosar_cpp14_m11_0_1_violation]
     SkeletonEventDataControlLocal<> data_control;
     // coverity[autosar_cpp14_m11_0_1_violation]
-    // std::reference_wrapper<EventSubscriptionControl> subscription_control;
 };
 
 }  // namespace score::mw::com::impl::lola

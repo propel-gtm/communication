@@ -318,6 +318,7 @@ cc_library(
         ":transaction_log_registration_guard",
         ":type_erased_sample_ptrs_guard",
         ":skeleton_service_data_control_local",
+        ":proxy_service_data_control_local",
         "//score/mw/com/impl:instance_identifier",
         "//score/mw/com/impl:runtime",
         "//score/mw/com/impl:skeleton_binding",
@@ -737,6 +738,7 @@ cc_library(
     deps = [
         ":control_slot_types",
         ":skeleton_event_data_control_local",
+        ":proxy_event_data_control_local",
         ":event_data_control",
         ":event_slot_status",
         "@score_baselibs//score/memory/shared:atomic_indirector",

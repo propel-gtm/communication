@@ -65,6 +65,7 @@ class EventDataControlComposite;
 /// which can negatively affect performance. Therefore, the data in EventDataControl is created / opened once during
 /// Skeleton / Proxy creation, and then is accessed during runtime via EventDataControlLocal.
 template <template <class> class AtomicIndirectorType = memory::shared::AtomicIndirectorReal>
+/// gtodo: Rename to SkeletonEventDataControlLocalView
 class SkeletonEventDataControlLocal final
 {
     // Suppress "AUTOSAR C++14 A11-3-1", The rule declares: "Friend declarations shall not be used".

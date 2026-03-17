@@ -32,6 +32,7 @@ namespace score::mw::com::impl::lola
 /// event_controls_ map will never be resized after construction), each Proxy can simply create a
 /// SkeletonServiceDataControlLocal to avoid accessing the shared memory via OffsetPtr. Additional information about the
 /// performance impacts of OffsetPtr are described in EventDataControl.
+// gtodo: Rename to *LocalView
 class SkeletonServiceDataControlLocal
 {
   public:

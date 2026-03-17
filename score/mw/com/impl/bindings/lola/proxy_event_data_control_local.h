@@ -116,6 +116,21 @@ class ProxyEventDataControlLocal final
         const TransactionLogSet::TransactionLogIndex transaction_log_index,
         const EventSlotStatus::EventTimeStamp upper_limit = EventSlotStatus::TIMESTAMP_MAX) noexcept;
 
+    /// \brief Increments refcount of given slot by one (given it is in the correct state i.e. being accessible/
+    ///        readable)
+    /// \details This is a specific feature - not used by the standard proxy/consumer, which is using
+    ///          ReferenceNextEvent(). This API has been introduced in the context of IPC-Tracing, where a skeleton is
+    ///          referencing/using a slot it just has allocated to trace out the content via Trace-API and
+    ///          de-referencing it after tracing of the slot data has been accomplished.
+    ///          IMPORTANT: This function is _ONLY_ threadsafe with another function incrementing the ref count of a
+    ///          slot (e.g. via ReferenceNextEvent). The function must _NOT_ be called in a context in which another
+    ///          thread could mark the slot as invalid or marked for writing concurrently with this function. If this
+    ///          function is called by the SkeletonEvent itself before handing out a SampleAllocateePtr to the user,
+    ///          then it is safe.
+    /// \param slot_index index of the slot to be referenced.
+    void ReferenceSpecificEvent(const SlotIndexType slot_index,
+                                const TransactionLogSet::TransactionLogIndex transaction_log_index) noexcept;
+
     /// \brief Returns number/count of events within event slots, which are newer than the given timestamp.
     /// \param reference_time given reference timestamp.
     /// \return number/count of available events, which are newer than the given reference_time.

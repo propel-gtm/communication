@@ -17,6 +17,7 @@
 #include "score/mw/com/impl/bindings/lola/control_slot_types.h"
 #include "score/mw/com/impl/bindings/lola/event_data_control.h"
 #include "score/mw/com/impl/bindings/lola/event_slot_status.h"
+#include "score/mw/com/impl/bindings/lola/proxy_event_data_control_local.h"
 #include "score/mw/com/impl/bindings/lola/skeleton_event_data_control_local.h"
 
 #include "score/memory/shared/atomic_indirector.h"
@@ -46,11 +47,14 @@ class EventDataControlComposite
 
   public:
     /// \brief Constructs a composite which will only manage a single QM control (no ASIL use-case)
-    explicit EventDataControlComposite(SkeletonEventDataControlLocal<>* const asil_qm_control_local);
+    /// gtodo: Pass in references where required
+    explicit EventDataControlComposite(SkeletonEventDataControlLocal<>* const asil_qm_control_local,
+                                       ProxyEventDataControlLocal<>* const proxy_control_local);
 
     /// \brief Constructs a composite which will manage QM and ASIL control at the same time
     explicit EventDataControlComposite(SkeletonEventDataControlLocal<>* const asil_qm_control_local,
-                                       SkeletonEventDataControlLocal<>* const asil_b_control_local);
+                                       SkeletonEventDataControlLocal<>* const asil_b_control_local,
+                                       ProxyEventDataControlLocal<>* const proxy_control_local);
 
     /// \brief Checks for the oldest unused slot and acquires for writing (thread-safe, wait-free)
     ///
@@ -91,6 +95,9 @@ class EventDataControlComposite
     /// \return a nullptr if no ASIL-B support, otherwise, a valid pointer to the ASIL-B EventDataControl.
     SkeletonEventDataControlLocal<>* GetAsilBEventDataControlLocal() noexcept;
 
+    /// gtodo: Add test and documentation
+    ProxyEventDataControlLocal<>& GetProxyEventDataControlLocal() noexcept;
+
     /// \brief Returns the timestamp of the provided slot index
     EventSlotStatus::EventTimeStamp GetEventSlotTimestamp(const SlotIndexType slot) const noexcept;
 
@@ -99,6 +106,8 @@ class EventDataControlComposite
   private:
     SkeletonEventDataControlLocal<>* asil_qm_control_local_;
     SkeletonEventDataControlLocal<>* asil_b_control_local_;
+
+    ProxyEventDataControlLocal<>* proxy_control_local_;
 
     /// \brief flag indicating, whether qm_control part shall be ignored in any public API (AllocateNextSlot(),
     /// EventReady(), Discard()()

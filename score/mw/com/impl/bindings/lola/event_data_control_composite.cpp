@@ -27,17 +27,20 @@ constexpr std::size_t MAX_MULTI_ALLOCATE_RETRY_COUNT{100U};
 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init): all members are initialized in the delegated constructor
 template <template <class> class AtomicIndirectorType>
 EventDataControlComposite<AtomicIndirectorType>::EventDataControlComposite(
-    SkeletonEventDataControlLocal<>* const asil_qm_control_local)
-    : EventDataControlComposite{asil_qm_control_local, nullptr}
+    SkeletonEventDataControlLocal<>* const asil_qm_control_local,
+    ProxyEventDataControlLocal<>* const proxy_control_local)
+    : EventDataControlComposite{asil_qm_control_local, nullptr, proxy_control_local}
 {
 }
 
 template <template <class> class AtomicIndirectorType>
 EventDataControlComposite<AtomicIndirectorType>::EventDataControlComposite(
     SkeletonEventDataControlLocal<>* const asil_qm_control_local,
-    SkeletonEventDataControlLocal<>* const asil_b_control_local)
+    SkeletonEventDataControlLocal<>* const asil_b_control_local,
+    ProxyEventDataControlLocal<>* const proxy_control_local)
     : asil_qm_control_local_{asil_qm_control_local},
       asil_b_control_local_{asil_b_control_local},
+      proxy_control_local_{proxy_control_local},
       ignore_qm_control_{false}
 {
     CheckForValidDataControls();
@@ -284,6 +287,13 @@ SkeletonEventDataControlLocal<>*
 EventDataControlComposite<AtomicIndirectorType>::GetAsilBEventDataControlLocal() noexcept
 {
     return asil_b_control_local_;
+}
+
+template <template <class> class AtomicIndirectorType>
+ProxyEventDataControlLocal<>& EventDataControlComposite<AtomicIndirectorType>::GetProxyEventDataControlLocal() noexcept
+{
+    SCORE_LANGUAGE_FUTURECPP_PRECONDITION_PRD(proxy_control_local_ != nullptr);
+    return *proxy_control_local_;
 }
 
 template <template <class> class AtomicIndirectorType>
