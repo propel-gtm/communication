@@ -22,6 +22,7 @@
 
 #include "score/memory/shared/atomic_indirector.h"
 
+#include <functional>
 #include <optional>
 
 namespace score::mw::com::impl::lola
@@ -48,11 +49,11 @@ class EventDataControlComposite
   public:
     /// \brief Constructs a composite which will only manage a single QM control (no ASIL use-case)
     /// gtodo: Pass in references where required
-    explicit EventDataControlComposite(SkeletonEventDataControlLocal<>* const asil_qm_control_local,
+    explicit EventDataControlComposite(SkeletonEventDataControlLocal<>& asil_qm_control_local,
                                        ProxyEventDataControlLocal<>* const proxy_control_local);
 
     /// \brief Constructs a composite which will manage QM and ASIL control at the same time
-    explicit EventDataControlComposite(SkeletonEventDataControlLocal<>* const asil_qm_control_local,
+    explicit EventDataControlComposite(SkeletonEventDataControlLocal<>& asil_qm_control_local,
                                        SkeletonEventDataControlLocal<>* const asil_b_control_local,
                                        ProxyEventDataControlLocal<>* const proxy_control_local);
 
@@ -104,7 +105,7 @@ class EventDataControlComposite
     EventSlotStatus::EventTimeStamp GetLatestTimestamp() const noexcept;
 
   private:
-    SkeletonEventDataControlLocal<>* asil_qm_control_local_;
+    std::reference_wrapper<SkeletonEventDataControlLocal<>> asil_qm_control_local_;
     SkeletonEventDataControlLocal<>* asil_b_control_local_;
 
     ProxyEventDataControlLocal<>* proxy_control_local_;
