@@ -13,9 +13,9 @@
 #include "score/mw/com/impl/bindings/lola/runtime.h"
 
 #include "score/concurrency/thread_pool.h"
-#include "score/os/mocklib/unistdmock.h"
 #include "score/mw/com/impl/configuration/configuration.h"
 #include "score/mw/com/impl/configuration/global_configuration.h"
+#include "score/os/mocklib/unistdmock.h"
 
 #include <gtest/gtest.h>
 #include <memory>
@@ -63,7 +63,7 @@ TEST_F(LolaRuntimeApplicationIdTest, GetApplicationIdFallsBackToProcessUidWhenNo
 {
     // Given a configuration without an explicit applicationID
     const uid_t process_uid = 999;  // This remains uid_t as it mocks the OS call
-    EXPECT_CALL(*unistd_mock_guard_, getuid()).WillOnce(Return(process_uid));
+    ON_CALL(*unistd_mock_guard_, getuid()).WillByDefault(Return(process_uid));
     Configuration config({}, {}, {}, {});
 
     // When the LoLa Runtime is constructed

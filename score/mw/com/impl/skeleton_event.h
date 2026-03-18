@@ -24,8 +24,8 @@
 
 #include "score/mw/com/impl/mocking/i_skeleton_event.h"
 
-#include "score/result/result.h"
 #include "score/mw/log/logging.h"
+#include "score/result/result.h"
 
 #include <memory>
 #include <string_view>
@@ -182,7 +182,8 @@ SkeletonEvent<SampleDataType>::SkeletonEvent(SkeletonBase& skeleton_base,
 
 template <typename SampleDataType>
 SkeletonEvent<SampleDataType>::SkeletonEvent(SkeletonEvent&& other) noexcept
-    : SkeletonEventBase(std::move(other)), skeleton_event_mock_{std::move(other.skeleton_event_mock_)}
+    : SkeletonEventBase(std::move(static_cast<SkeletonEventBase&&>(other))),
+      skeleton_event_mock_{std::move(other.skeleton_event_mock_)}
 {
     // Since the address of this event has changed, we need update the address stored in the parent skeleton.
     SkeletonBaseView base_skeleton_view{skeleton_base_.get()};
@@ -233,7 +234,7 @@ ResultBlank SkeletonEvent<SampleDataType>::Send(const EventType& sample_value) n
     if (!send_result.has_value())
     {
         score::mw::log::LogError("lola") << "SkeletonEvent::Send with copy failed: " << send_result.error().Message()
-                                       << ": " << send_result.error().UserMessage();
+                                         << ": " << send_result.error().UserMessage();
         return MakeUnexpected(ComErrc::kBindingFailure);
     }
     return send_result;
@@ -261,7 +262,7 @@ ResultBlank SkeletonEvent<SampleDataType>::Send(SampleAllocateePtr<EventType> sa
     if (!send_result.has_value())
     {
         score::mw::log::LogError("lola") << "SkeletonEvent::Send zero copy failed: " << send_result.error().Message()
-                                       << ": " << send_result.error().UserMessage();
+                                         << ": " << send_result.error().UserMessage();
         return MakeUnexpected(ComErrc::kBindingFailure);
     }
     return send_result;
@@ -286,7 +287,7 @@ Result<SampleAllocateePtr<SampleDataType>> SkeletonEvent<SampleDataType>::Alloca
     if (!allocate_result.has_value())
     {
         score::mw::log::LogError("lola") << "SkeletonEvent::Allocate failed: " << allocate_result.error().Message()
-                                       << ": " << allocate_result.error().UserMessage();
+                                         << ": " << allocate_result.error().UserMessage();
         return MakeUnexpected(ComErrc::kBindingFailure);
     }
     return allocate_result;
@@ -296,7 +297,8 @@ template <typename SampleDataType>
 auto SkeletonEvent<SampleDataType>::GetTypedEventBinding() const noexcept -> SkeletonEventBinding<SampleDataType>*
 {
     auto* const typed_binding = dynamic_cast<SkeletonEventBinding<EventType>*>(binding_.get());
-    SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD_MESSAGE(typed_binding != nullptr, "Downcast to SkeletonEventBinding<EventType> failed!");
+    SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD_MESSAGE(typed_binding != nullptr,
+                                                "Downcast to SkeletonEventBinding<EventType> failed!");
     return typed_binding;
 }
 

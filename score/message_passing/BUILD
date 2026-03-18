@@ -11,6 +11,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # *******************************************************************************
 
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@score_baselibs//:bazel/unit_tests.bzl", "cc_gtest_unit_test")
 load("@score_baselibs//third_party/itf:py_unittest_qnx_test.bzl", "py_unittest_qnx_test")
 
@@ -146,6 +147,7 @@ cc_library(
         "treat_warnings_as_errors",
         "strict_warnings",
         "additional_warnings",
+        "strict_warnings_no_error",
     ],
     visibility = [
         "//score/mw/com/impl:__subpackages__",
@@ -155,6 +157,7 @@ cc_library(
         "@score_baselibs//score/os:socket",
         "@score_baselibs//score/os:sys_poll",
         "@score_baselibs//score/os:unistd",
+        "@score_baselibs//score/os/utils:signal",
     ],
 )
 
@@ -215,6 +218,7 @@ cc_library(
         "@score_baselibs//score/os/qnx:dispatch",
         "@score_baselibs//score/os/qnx:iofunc",
         "@score_baselibs//score/os/qnx:timer",
+        "@score_baselibs//score/os/utils:signal",
     ],
 )
 
@@ -297,6 +301,7 @@ cc_gtest_unit_test(
         "@score_baselibs//score/os/mocklib/qnx:dispatch_mock",
         "@score_baselibs//score/os/mocklib/qnx:iofunc_mock",
         "@score_baselibs//score/os/mocklib/qnx:timer_mock",
+        "@score_baselibs//score/os/utils/mocklib:signal_mock",
     ],
 )
 

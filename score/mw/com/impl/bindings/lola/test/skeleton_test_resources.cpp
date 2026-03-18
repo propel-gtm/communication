@@ -189,7 +189,8 @@ SkeletonMockedMemoryFixture::SkeletonMockedMemoryFixture()
         .WillByDefault(Return(test::kServiceInstanceUsageFilePath));
     ON_CALL(*fcntl_mock_, open(StrEq(test::kServiceInstanceUsageFilePath), test::kCreateOrOpenFlags, _))
         .WillByDefault(Return(test::kServiceInstanceUsageFileDescriptor));
-    ON_CALL(*stat_mock_, chmod(StrEq(test::kServiceInstanceUsageFilePath), _)).WillByDefault(Return(score::cpp::blank{}));
+    ON_CALL(*stat_mock_, chmod(StrEq(test::kServiceInstanceUsageFilePath), _))
+        .WillByDefault(Return(score::cpp::blank{}));
 
     // Default behaviour for creating QM and ASIL-B shared memory resources - occurs when there is no connected proxy.
     ON_CALL(shared_memory_factory_mock_, Create(test::kControlChannelPathQm, _, _, _, false))
@@ -331,12 +332,12 @@ ServiceDataControl SkeletonMockedMemoryFixture::CreateServiceDataControlWithEven
 {
     const auto created_resource = (quality_type == QualityType::kASIL_QM) ? control_qm_shared_memory_resource_mock_
                                                                           : control_asil_b_shared_memory_resource_mock_;
-    ServiceDataControl service_data_control{created_resource->getMemoryResourceProxy()};
+    ServiceDataControl service_data_control{*created_resource};
 
-    auto event_control = service_data_control.event_controls_.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple(element_fq_id),
-        std::forward_as_tuple(10U, 10U, true, created_resource->getMemoryResourceProxy()));
+    auto event_control =
+        service_data_control.event_controls_.emplace(std::piecewise_construct,
+                                                     std::forward_as_tuple(element_fq_id),
+                                                     std::forward_as_tuple(10U, 10U, true, *created_resource));
     EXPECT_TRUE(event_control.second);
     return service_data_control;
 }

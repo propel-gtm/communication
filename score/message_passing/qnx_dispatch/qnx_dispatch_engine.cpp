@@ -19,11 +19,13 @@
 #include <iostream>
 
 #include <sys/siginfo.h>
+
 namespace score::message_passing
 {
 
 namespace
 {
+
 struct select_msg_t
 {
     _io_msg hdr;
@@ -153,22 +155,34 @@ QnxDispatchEngine::QnxDispatchEngine(score::cpp::pmr::memory_resource* memory_re
 
     SetupResourceManagerCallbacks();
 
-    LogDebug(logger_, "QnxDispatchEngine thread-start ", this);
-
-    // Suppress "AUTOSAR C++14 A8-5-3" rule finding: "A variable of type auto shall not be initialized using {} or
-    // ={} braced initialization.". (Ticket-219101)
-    // coverity[autosar_cpp14_a8_5_3_violation: FALSE] False positive: the variable is not declared with 'auto'.
-    std::lock_guard acquire{thread_mutex_};  // postpone thread start till we assign thread_
-    thread_ = std::thread([this]() noexcept {
-        {
-            // Suppress "AUTOSAR C++14 A8-5-3" rule finding: "A variable of type auto shall not be initialized using {}
-            // or ={} braced initialization.". (Ticket-219101)
-            // coverity[autosar_cpp14_a8_5_3_violation: FALSE] False positive: the variable is not declared with 'auto'.
-            std::lock_guard release{thread_mutex_};
-        }
-        LogDebug(logger_, "QnxDispatchEngine thread-start-sync ", this);
-        RunOnThread();
-    });
+    // Normally, during the application lifecycle initialization, LifeCycleManager blocks the SIGTERM on the main
+    // thread and creates a separate thread that catches all the SIGTERM signals coming to the process. The other
+    // threads created after that will inherit the sigmask of the main thread with SIGTERM blocked.
+    // However, LifeCycleManager starts using Logging before it blocks SIGTERM on the main thread. When this happens,
+    // Logging will initialize Message Passing, which will create the Message Passing background thread with a sigmask
+    // inherited without SIGTERM being blocked yet.
+    // Thus, we need to mask SIGTERM for this thread specifically, to let the LifeCycleManager desicated SIGTERM
+    // thread do its job.
+    sigset_t new_set;
+    sigset_t old_set;
+    // the signal functions below, used with the parameters below, can only return EOK
+    score::cpp::ignore = os_resources_.signal->SigEmptySet(new_set);
+    score::cpp::ignore = os_resources_.signal->AddTerminationSignal(new_set);
+    // NOLINTNEXTLINE(score-banned-function) by design of LifeCycleManager. Also see Ticket-101432
+    score::cpp::ignore = os_resources_.signal->PthreadSigMask(SIG_BLOCK, new_set, old_set);
+    {
+        LogDebug(logger_, "QnxDispatchEngine thread-start ", this);
+        std::lock_guard acquire(thread_mutex_);  // postpone RunOnThread() till we assign thread_
+        thread_ = std::thread([this]() noexcept {
+            {
+                std::lock_guard release(thread_mutex_);  // guarantees that this->thread_ is already assigned
+            }
+            LogDebug(logger_, "QnxDispatchEngine thread-start-sync ", this);
+            RunOnThread();
+        });
+    }
+    // NOLINTNEXTLINE(score-banned-function) by design of LifeCycleManager. Also see Ticket-101432
+    score::cpp::ignore = os_resources_.signal->PthreadSigMask(SIG_SETMASK, old_set);
 }
 
 // Note 'C++14 A8-4-10':
@@ -598,7 +612,7 @@ void QnxDispatchEngine::SetupResourceManagerCallbacks() noexcept
 
 // coverity[autosar_cpp14_m7_3_1_violation] false-positive: class method (Ticket-234468)
 score::cpp::expected_blank<score::os::Error> QnxDispatchEngine::StartServer(ResourceManagerServer& server,
-                                                                   const QnxResourcePath& path) noexcept
+                                                                            const QnxResourcePath& path) noexcept
 {
     // QNX defect PR# 2561573: resmgr_attach/message_attach calls are not thread-safe for the same dispatch_pointer
 
@@ -668,7 +682,8 @@ std::int32_t QnxDispatchEngine::io_open(resmgr_context_t* const ctp,
 
     // the attr locks are currently not needed, but we should not forget about them in multithreaded implementation
     score::cpp::ignore = iofunc->iofunc_attr_lock(&server.attr);
-    const score::cpp::expected_blank<std::int32_t> status = iofunc->iofunc_open(ctp, msg, &server.attr, nullptr, nullptr);
+    const score::cpp::expected_blank<std::int32_t> status =
+        iofunc->iofunc_open(ctp, msg, &server.attr, nullptr, nullptr);
     if (!status.has_value())
     {
         score::cpp::ignore = iofunc->iofunc_attr_unlock(&server.attr);
@@ -759,8 +774,8 @@ std::int32_t QnxDispatchEngine::io_write(resmgr_context_t* const ctp,
     const auto buffer = const_cast<const std::uint8_t*>(static_cast<std::uint8_t*>(static_cast<void*>(&msg[1])));
     const std::uint8_t code = buffer[0];
     // coverity[autosar_cpp14_m5_0_15_violation] see Rationale above
-    const score::cpp::span<const std::uint8_t> message = {&buffer[1],
-                                                   static_cast<score::cpp::span<std::uint8_t>::size_type>(nbytes - 1U)};
+    const score::cpp::span<const std::uint8_t> message = {
+        &buffer[1], static_cast<score::cpp::span<std::uint8_t>::size_type>(nbytes - 1U)};
     // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic) C API
 
     // TODO: close connection on false (once this functionality is demanded)

@@ -84,7 +84,8 @@ class EventDataControlImpl final
 
   public:
     using EventControlSlots =
-        score::containers::DynamicArray<ControlSlotType, memory::shared::PolymorphicOffsetPtrAllocator<ControlSlotType>>;
+        score::containers::DynamicArray<ControlSlotType,
+                                        memory::shared::PolymorphicOffsetPtrAllocator<ControlSlotType>>;
     static_assert(ControlSlotType::is_always_lock_free, "According to high level design, SlotType must be lock free.");
 
     /// \brief Will construct EventDataControlImpl and dynamically allocate memory on provided resource on
@@ -95,7 +96,7 @@ class EventDataControlImpl final
     ///        owning this EventDataControl at any one time.
     EventDataControlImpl(
         const SlotIndexType max_slots,
-        const score::memory::shared::MemoryResourceProxy* const proxy,
+        score::memory::shared::ManagedMemoryResource& resource,
         const LolaEventInstanceDeployment::SubscriberCountType max_number_combined_subscribers) noexcept;
     ~EventDataControlImpl() noexcept = default;
 
@@ -156,10 +157,10 @@ class EventDataControlImpl final
     ///         timestamp (are older).
     ///         If no such event exists, an invalid ControlSlotIndicator is returned.
     /// \post DereferenceEvent() is invoked to withdraw read-ownership
-    ControlSlotIndicator ReferenceNextEvent(
-        const EventSlotStatus::EventTimeStamp last_search_time,
-        const TransactionLogSet::TransactionLogIndex transaction_log_index,
-        const EventSlotStatus::EventTimeStamp upper_limit = EventSlotStatus::TIMESTSCORE_LANGUAGE_FUTURECPP_MAX) noexcept;
+    ControlSlotIndicator ReferenceNextEvent(const EventSlotStatus::EventTimeStamp last_search_time,
+                                            const TransactionLogSet::TransactionLogIndex transaction_log_index,
+                                            const EventSlotStatus::EventTimeStamp upper_limit =
+                                                EventSlotStatus::TIMESTSCORE_LANGUAGE_FUTURECPP_MAX) noexcept;
 
     /// \brief Returns number/count of events within event slots, which are newer than the given timestamp.
     /// \param reference_time given reference timestamp.

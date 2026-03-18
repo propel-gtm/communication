@@ -28,6 +28,7 @@
 #include "score/os/qnx/timer_impl.h"
 #include "score/os/sys_uio.h"
 #include "score/os/unistd.h"
+#include "score/os/utils/signal_impl.h"
 
 #include <condition_variable>
 #include <mutex>
@@ -66,6 +67,9 @@ class QnxDispatchEngine final : public ISharedResourceEngine
         // coverity[autosar_cpp14_m11_0_1_violation]
         // coverity[autosar_cpp14_a9_6_1_violation]
         score::cpp::pmr::unique_ptr<score::os::IoFunc> iofunc{};
+        // coverity[autosar_cpp14_m11_0_1_violation]
+        // coverity[autosar_cpp14_a9_6_1_violation]
+        score::cpp::pmr::unique_ptr<score::os::Signal> signal{};
         // coverity[autosar_cpp14_m11_0_1_violation]
         // coverity[autosar_cpp14_a9_6_1_violation]
         score::cpp::pmr::unique_ptr<score::os::qnx::Timer> timer{};
@@ -151,7 +155,8 @@ class QnxDispatchEngine final : public ISharedResourceEngine
         // coverity[autosar_cpp14_a11_3_1_violation]
         friend QnxDispatchEngine;
 
-        virtual bool ProcessInput(const std::uint8_t code, const score::cpp::span<const std::uint8_t> message) noexcept = 0;
+        virtual bool ProcessInput(const std::uint8_t code,
+                                  const score::cpp::span<const std::uint8_t> message) noexcept = 0;
         virtual void ProcessDisconnect() noexcept = 0;
         virtual bool HasSomethingToRead() noexcept = 0;
 
@@ -180,6 +185,7 @@ class QnxDispatchEngine final : public ISharedResourceEngine
                 score::os::Dispatch::Default(memory_resource),
                 score::os::Fcntl::Default(memory_resource),
                 score::os::IoFunc::Default(memory_resource),
+                score::cpp::pmr::make_unique<score::os::SignalImpl>(memory_resource),
                 score::cpp::pmr::make_unique<score::os::qnx::TimerImpl>(memory_resource),
                 score::os::SysUio::Default(memory_resource),
                 score::os::Unistd::Default(memory_resource)};
@@ -201,7 +207,8 @@ class QnxDispatchEngine final : public ISharedResourceEngine
     using FinalizeOwnerCallback = score::cpp::callback<void() /* noexcept */>;
 
     // coverity[autosar_cpp14_m7_3_1_violation] false-positive: class method (Ticket-234468)
-    score::cpp::expected<std::int32_t, score::os::Error> TryOpenClientConnection(std::string_view identifier) noexcept override;
+    score::cpp::expected<std::int32_t, score::os::Error> TryOpenClientConnection(
+        std::string_view identifier) noexcept override;
 
     void CloseClientConnection(std::int32_t client_fd) noexcept override;
 
@@ -230,9 +237,9 @@ class QnxDispatchEngine final : public ISharedResourceEngine
         std::uint8_t& code) noexcept override;
 
     static score::cpp::expected_blank<std::int32_t> AttachConnection(resmgr_context_t* const ctp,
-                                                              io_open_t* const msg,
-                                                              ResourceManagerServer& server,
-                                                              ResourceManagerConnection& connection) noexcept;
+                                                                     io_open_t* const msg,
+                                                                     ResourceManagerServer& server,
+                                                                     ResourceManagerConnection& connection) noexcept;
 
     bool IsOnCallbackThread() const noexcept override
     {
@@ -263,7 +270,7 @@ class QnxDispatchEngine final : public ISharedResourceEngine
     void SetupResourceManagerCallbacks() noexcept;
     // coverity[autosar_cpp14_m7_3_1_violation] false-positive: class method (Ticket-234468)
     score::cpp::expected_blank<score::os::Error> StartServer(ResourceManagerServer& server,
-                                                    const QnxResourcePath& path) noexcept;
+                                                             const QnxResourcePath& path) noexcept;
     void StopServer(ResourceManagerServer& server) noexcept;
 
     // coverity[autosar_cpp14_a0_1_3_violation] false-positive: used in multiple class methods

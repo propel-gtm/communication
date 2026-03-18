@@ -13,21 +13,22 @@
 #ifndef SCORE_MW_COM_IMPL_BINDINGS_LOLA_SKELETON_H
 #define SCORE_MW_COM_IMPL_BINDINGS_LOLA_SKELETON_H
 
-#include "score/memory/shared/managed_memory_resource.h"
 #include "score/mw/com/impl/bindings/lola/element_fq_id.h"
 #include "score/mw/com/impl/bindings/lola/event_data_control_composite.h"
 #include "score/mw/com/impl/bindings/lola/event_data_storage.h"
 #include "score/mw/com/impl/bindings/lola/i_partial_restart_path_builder.h"
 #include "score/mw/com/impl/bindings/lola/i_shm_path_builder.h"
+#include "score/mw/com/impl/bindings/lola/messaging/method_call_registration_guard.h"
+#include "score/mw/com/impl/bindings/lola/messaging/method_subscription_registration_guard.h"
 #include "score/mw/com/impl/bindings/lola/methods/method_data.h"
 #include "score/mw/com/impl/bindings/lola/methods/method_resource_map.h"
-#include "score/mw/com/impl/bindings/lola/methods/proxy_instance_identifier.h"
-#include "score/mw/com/impl/bindings/lola/methods/skeleton_instance_identifier.h"
 #include "score/mw/com/impl/bindings/lola/methods/type_erased_call_queue.h"
+#include "score/mw/com/impl/bindings/lola/proxy_instance_identifier.h"
 #include "score/mw/com/impl/bindings/lola/runtime.h"
 #include "score/mw/com/impl/bindings/lola/service_data_control.h"
 #include "score/mw/com/impl/bindings/lola/service_data_storage.h"
 #include "score/mw/com/impl/bindings/lola/skeleton_event_properties.h"
+#include "score/mw/com/impl/bindings/lola/skeleton_instance_identifier.h"
 #include "score/mw/com/impl/bindings/lola/skeleton_method.h"
 #include "score/mw/com/impl/configuration/global_configuration.h"
 #include "score/mw/com/impl/configuration/lola_event_id.h"
@@ -218,11 +219,21 @@ class Skeleton final : public SkeletonBinding
                                            const uid_t proxy_uid,
                                            const QualityType asil_level,
                                            const pid_t proxy_pid);
+
+    using MethodIdsToUnsubscribe = std::vector<LolaMethodId>;
+    std::pair<score::ResultBlank, MethodIdsToUnsubscribe> SubscribeMethods(
+        const MethodData& method_data,
+        const ProxyInstanceIdentifier proxy_instance_identifier,
+        const uid_t proxy_uid,
+        const pid_t proxy_pid,
+        const QualityType asil_level);
+    void UnsubscribeMethods(const std::vector<LolaMethodId>& method_ids,
+                            const ProxyInstanceIdentifier& proxy_instance_identifier);
+
     static MethodData& GetMethodData(const memory::shared::ManagedMemoryResource& resource);
 
-    /// \brief Checks whether the Proxy which sent a notification to the Skeleton that it subscribed to a method is in
-    /// the allowed_consumers list in the configuration.
-    bool IsProxyInAllowedConsumerList(const uid_t proxy_uid, const QualityType asil_level) const;
+    /// \brief Gets the set of allowed proxy consumer IDs from the configuration
+    IMessagePassingService::AllowedConsumerUids GetAllowedConsumers(const QualityType asil_level) const;
 
     InstanceIdentifier identifier_;
     const LolaServiceInstanceDeployment& lola_service_instance_deployment_;
@@ -257,10 +268,29 @@ class Skeleton final : public SkeletonBinding
     MethodResourceMap method_resources_;
     std::unordered_map<LolaMethodId, std::reference_wrapper<SkeletonMethod>> skeleton_methods_;
 
+    /// \brief RAII guard objects which will unregister a ServiceMethodSubscribedHandler/RegisterMethodCallHandler on
+    /// destruction
+    ///
+    /// Each guard corresponds to the method subscription / method call handler which was registered in
+    /// Skeleton::PrepareOffer() (in case any methods were registered). The guard objects will be destroyed in
+    /// Skeleton::PrepareStopOffer()
+    MethodSubscriptionRegistrationGuard method_subscription_registration_guard_qm_;
+    MethodSubscriptionRegistrationGuard method_subscription_registration_guard_asil_b_;
+
     bool was_old_shm_region_reopened_;
 
     score::filesystem::Filesystem filesystem_;
 
+    /// \brief Scope that is passed to the MethodCallHandler handler that is registered for each ProxyMethod
+    ///
+    /// This scope will be manually expired in PrepareStopOffer which will prevent any ProxyMethod from calling a
+    /// method.
+    safecpp::Scope<> method_call_handler_scope_;
+
+    /// \brief Scope that is passed to the ServiceMethodSubscribedHandler
+    ///
+    /// This scope will be manually expired in PrepareStopOffer which will prevent any Proxy from subscribing to this
+    /// method.
     safecpp::Scope<> on_service_method_subscribed_handler_scope_;
 };
 
@@ -357,7 +387,8 @@ auto Skeleton::OpenEventDataFromOpenedSharedMemory(const ElementFqId element_fq_
     // coverity[autosar_cpp14_a5_3_2_violation]
     auto* const typed_event_data_storage_ptr =
         event_data_storage_it->second.template get<EventDataStorage<SampleType>>();
-    SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD_MESSAGE(typed_event_data_storage_ptr != nullptr, "Could not get EventDataStorage*");
+    SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD_MESSAGE(typed_event_data_storage_ptr != nullptr,
+                                                "Could not get EventDataStorage*");
 
     // Suppress "AUTOSAR C++14 A3-8-1" rule findings. This rule declares:
     // "An object shall not be accessed outside of its lifetime"
@@ -387,12 +418,13 @@ auto Skeleton::CreateEventDataFromOpenedSharedMemory(const ElementFqId element_f
 {
     auto* typed_event_data_storage_ptr = storage_resource_->construct<EventDataStorage<SampleType>>(
         element_properties.number_of_slots,
-        memory::shared::PolymorphicOffsetPtrAllocator<SampleType>(storage_resource_->getMemoryResourceProxy()));
+        memory::shared::PolymorphicOffsetPtrAllocator<SampleType>(*storage_resource_));
 
     auto inserted_data_slots = storage_->events_.emplace(std::piecewise_construct,
                                                          std::forward_as_tuple(element_fq_id),
                                                          std::forward_as_tuple(typed_event_data_storage_ptr));
-    SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD_MESSAGE(inserted_data_slots.second, "Couldn't register/emplace event-storage in data-section.");
+    SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD_MESSAGE(inserted_data_slots.second,
+                                                "Couldn't register/emplace event-storage in data-section.");
 
     constexpr DataTypeMetaInfo sample_meta_info{sizeof(SampleType), static_cast<std::uint8_t>(alignof(SampleType))};
     auto* event_data_raw_array = typed_event_data_storage_ptr->data();
@@ -400,27 +432,28 @@ auto Skeleton::CreateEventDataFromOpenedSharedMemory(const ElementFqId element_f
         storage_->events_metainfo_.emplace(std::piecewise_construct,
                                            std::forward_as_tuple(element_fq_id),
                                            std::forward_as_tuple(sample_meta_info, event_data_raw_array));
-    SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD_MESSAGE(inserted_meta_info.second, "Couldn't register/emplace event-meta-info in data-section.");
+    SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD_MESSAGE(inserted_meta_info.second,
+                                                "Couldn't register/emplace event-meta-info in data-section.");
 
-    auto control_qm =
-        control_qm_->event_controls_.emplace(std::piecewise_construct,
-                                             std::forward_as_tuple(element_fq_id),
-                                             std::forward_as_tuple(element_properties.number_of_slots,
-                                                                   element_properties.max_subscribers,
-                                                                   element_properties.enforce_max_samples,
-                                                                   control_qm_resource_->getMemoryResourceProxy()));
-    SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD_MESSAGE(control_qm.second, "Couldn't register/emplace event-meta-info in data-section.");
+    auto control_qm = control_qm_->event_controls_.emplace(std::piecewise_construct,
+                                                           std::forward_as_tuple(element_fq_id),
+                                                           std::forward_as_tuple(element_properties.number_of_slots,
+                                                                                 element_properties.max_subscribers,
+                                                                                 element_properties.enforce_max_samples,
+                                                                                 *control_qm_resource_));
+    SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD_MESSAGE(control_qm.second,
+                                                "Couldn't register/emplace event-meta-info in data-section.");
 
     EventDataControl* control_asil_result{nullptr};
     if (control_asil_resource_ != nullptr)
     {
-        auto iterator = control_asil_b_->event_controls_.emplace(
-            std::piecewise_construct,
-            std::forward_as_tuple(element_fq_id),
-            std::forward_as_tuple(element_properties.number_of_slots,
-                                  element_properties.max_subscribers,
-                                  element_properties.enforce_max_samples,
-                                  control_asil_resource_->getMemoryResourceProxy()));
+        auto iterator =
+            control_asil_b_->event_controls_.emplace(std::piecewise_construct,
+                                                     std::forward_as_tuple(element_fq_id),
+                                                     std::forward_as_tuple(element_properties.number_of_slots,
+                                                                           element_properties.max_subscribers,
+                                                                           element_properties.enforce_max_samples,
+                                                                           *control_asil_resource_));
 
         // Suppress "AUTOSAR C++14 M7-5-1" rule. This rule declares:
         // A function shall not return a reference or a pointer to an automatic variable (including parameters), defined

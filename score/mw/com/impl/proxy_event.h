@@ -24,8 +24,8 @@
 
 #include "score/mw/com/impl/mocking/i_proxy_event.h"
 
-#include "score/result/result.h"
 #include "score/mw/log/logging.h"
+#include "score/result/result.h"
 
 #include <score/assert.hpp>
 
@@ -188,7 +188,8 @@ ProxyEvent<SampleType>::ProxyEvent(ProxyBase& base,
 
 template <typename SampleType>
 ProxyEvent<SampleType>::ProxyEvent(ProxyEvent&& other) noexcept
-    : ProxyEventBase(std::move(other)), proxy_event_mock_{std::move(other.proxy_event_mock_)}
+    : ProxyEventBase(std::move(static_cast<ProxyEventBase&&>(other))),
+      proxy_event_mock_{std::move(other.proxy_event_mock_)}
 {
     // Since the address of this event has changed, we need update the address stored in the parent proxy.
     ProxyBaseView proxy_base_view{proxy_base_.get()};

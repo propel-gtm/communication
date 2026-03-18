@@ -129,6 +129,7 @@ TEST_F(ConfigurationFixture, ConfigIsCorrectlyParsedFromFile)
         "All relevant configuration aspects shall be read from a JSON file and not be manipulated by the read logic.");
     RecordProperty("TestingTechnique", "Requirements-based test");
     RecordProperty("DerivationTechnique", "Analysis of requirements");
+    RecordProperty("Priority", "2");
 
     // When parsing a json configuration file
     const auto json_path{get_path("mw_com_config.json")};
@@ -282,7 +283,7 @@ TEST_F(ConfigurationDeathTest, AddingAServiceTypeDeploymentWithDuplicateServiceI
     // When inserting another ServiceTypeDeployment with the same ServiceIdentifierType
     // Then the program terminates
     EXPECT_DEATH(score::cpp::ignore = unit_.value().AddServiceTypeDeployment(kConfigStoreQm.service_identifier_,
-                                                                      *kConfigStoreQm.service_type_deployment_),
+                                                                             *kConfigStoreQm.service_type_deployment_),
                  ".*");
 }
 

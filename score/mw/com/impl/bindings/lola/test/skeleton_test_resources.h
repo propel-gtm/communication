@@ -350,7 +350,8 @@ const auto kDataChannelPath{"/lola-data-0000000000000001-00016"};
 static const std::string kServiceInstanceUsageFilePath{"/test_service_instance_usage_file_path"};
 static const std::int32_t kServiceInstanceUsageFileDescriptor{7890};
 
-static const score::os::Fcntl::Open kCreateOrOpenFlags{score::os::Fcntl::Open::kCreate | score::os::Fcntl::Open::kReadOnly};
+static const score::os::Fcntl::Open kCreateOrOpenFlags{score::os::Fcntl::Open::kCreate |
+                                                       score::os::Fcntl::Open::kReadOnly};
 
 static const os::Fcntl::Operation kNonBlockingExlusiveLockOperation =
     os::Fcntl::Operation::kLockExclusive | score::os::Fcntl::Operation::kLockNB;
@@ -416,10 +417,10 @@ class SkeletonMockedMemoryFixture : public ::testing::Test
     template <typename SampleType>
     ServiceDataStorage CreateServiceDataStorageWithEvent(ElementFqId element_fq_id) noexcept
     {
-        ServiceDataStorage service_data_storage{data_shared_memory_resource_mock_->getMemoryResourceProxy()};
+        ServiceDataStorage service_data_storage{*data_shared_memory_resource_mock_};
 
         auto* event_data_storage = data_shared_memory_resource_mock_->construct<EventDataStorage<SampleType>>(
-            10U, data_shared_memory_resource_mock_->getMemoryResourceProxy());
+            10U, *data_shared_memory_resource_mock_);
 
         auto inserted_data_slots = service_data_storage.events_.emplace(
             std::piecewise_construct, std::forward_as_tuple(element_fq_id), std::forward_as_tuple(event_data_storage));

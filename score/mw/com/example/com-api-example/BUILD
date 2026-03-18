@@ -31,6 +31,7 @@ rust_test(
     tags = ["manual"],
     deps = [
         ":com-api-example",
-        "@crate_index//:tokio",
+        "@score_communication_crate_index//:futures",
+        "@score_communication_crate_index//:tokio",
     ],
 )
