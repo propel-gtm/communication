@@ -1,1 +1,1 @@
-Trigger file for chroma collection initialization.
+Trigger file for Chroma collection initialization.
